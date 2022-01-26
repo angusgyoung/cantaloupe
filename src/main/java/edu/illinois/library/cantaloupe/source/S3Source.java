@@ -2,23 +2,18 @@ package edu.illinois.library.cantaloupe.source;
 
 import edu.illinois.library.cantaloupe.config.Configuration;
 import edu.illinois.library.cantaloupe.config.Key;
+import edu.illinois.library.cantaloupe.delegate.DelegateMethod;
 import edu.illinois.library.cantaloupe.http.Range;
 import edu.illinois.library.cantaloupe.image.Format;
 import edu.illinois.library.cantaloupe.image.Identifier;
 import edu.illinois.library.cantaloupe.image.MediaType;
-import edu.illinois.library.cantaloupe.delegate.DelegateMethod;
 import edu.illinois.library.cantaloupe.util.S3ClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
-import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
-import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
-import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
-import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.model.*;
 
 import javax.script.ScriptException;
 import java.io.BufferedInputStream;
@@ -28,11 +23,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.NoSuchFileException;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 /**
  * <p>Maps an identifier to an <a href="https://aws.amazon.com/s3/">Amazon
@@ -242,12 +233,29 @@ final class S3Source extends AbstractSource implements Source {
             if (secretAccessKey == null) {
                 secretAccessKey = config.getString(Key.S3SOURCE_SECRET_KEY);
             }
+            String stsRoleArn = info.getStsRoleArn();
+            if (stsRoleArn == null) {
+                stsRoleArn = config.getString(Key.S3SOURCE_STS_ROLE_ARN);
+            }
+            String stsSessionName = info.getStsSessionName();
+            if (stsSessionName == null) {
+                stsSessionName = config.getString(Key.S3SOURCE_STS_SESSION_NAME);
+            }
+            String stsRegion = info.getStsRegion();
+            if (stsRegion == null) {
+                stsRegion = config.getString(Key.S3SOURCE_STS_REGION);
+            }
+
             client = new S3ClientBuilder()
                     .accessKeyID(accessKeyID)
                     .secretAccessKey(secretAccessKey)
                     .endpointURI(endpointURI)
                     .region(region)
+                    .stsRegion(stsRegion)
+                    .stsRoleArn(stsRoleArn)
+                    .stsSessionName(stsSessionName)
                     .build();
+
             CLIENTS.put(endpoint, client);
         }
         return client;
@@ -406,6 +414,9 @@ final class S3Source extends AbstractSource implements Source {
             info.setEndpoint(result.get("endpoint"));
             info.setAccessKeyID(result.get("access_key_id"));
             info.setSecretAccessKey(result.get("secret_access_key"));
+            info.setStsRoleArn(result.get("sts_role_arn"));
+            info.setStsSessionName(result.get("sts_session_name"));
+            info.setStsRegion(result.get("sts_region"));
             return info;
         } else {
             throw new IllegalArgumentException(

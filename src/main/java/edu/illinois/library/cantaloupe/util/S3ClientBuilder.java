@@ -1,15 +1,8 @@
 package edu.illinois.library.cantaloupe.util;
 
-import software.amazon.awssdk.auth.credentials.AwsCredentials;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProviderChain;
-import software.amazon.awssdk.auth.credentials.ContainerCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.*;
 import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.regions.providers.AwsProfileRegionProvider;
@@ -18,6 +11,9 @@ import software.amazon.awssdk.regions.providers.InstanceProfileRegionProvider;
 import software.amazon.awssdk.regions.providers.SystemSettingsRegionProvider;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.sts.StsClient;
+import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
+import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 
 import java.net.URI;
 
@@ -37,7 +33,8 @@ public final class S3ClientBuilder {
 
     private URI endpointURI;
     private Region region;
-    private String accessKeyID, secretAccessKey;
+    private Region stsRegion;
+    private String accessKeyID, secretAccessKey, stsRoleArn, stsSessionName;
 
     /**
      * Returns credentials using a similar strategy as the {@link
@@ -141,21 +138,67 @@ public final class S3ClientBuilder {
         return this;
     }
 
+    public S3ClientBuilder stsRoleArn(String stsRoleArn) {
+        this.stsRoleArn = stsRoleArn;
+        return this;
+    }
+
+    public S3ClientBuilder stsSessionName(String stsSessionName) {
+        this.stsSessionName = stsSessionName != null ? stsSessionName : "cantaloupe";
+        return this;
+    }
+
+    public S3ClientBuilder stsRegion(String stsRegion) {
+        try {
+            this.stsRegion = (stsRegion != null) ? Region.of(stsRegion) : region;
+        } catch (IllegalArgumentException | SdkClientException e) {
+            this.stsRegion = null;
+        }
+        return this;
+    }
+
     public S3Client build() {
+        SdkHttpClient.Builder<UrlConnectionHttpClient.Builder> httpClientBuilder = UrlConnectionHttpClient.builder();
+
         final S3Configuration config = S3Configuration.builder()
                 .pathStyleAccessEnabled(endpointURI != null)
                 .checksumValidationEnabled(false)
                 .build();
+
         software.amazon.awssdk.services.s3.S3ClientBuilder builder = S3Client.builder()
-                .httpClientBuilder(UrlConnectionHttpClient.builder())
+                .httpClientBuilder(httpClientBuilder)
                 .serviceConfiguration(config)
                 // A region is required even for non-AWS endpoints.
                 .region(getEffectiveRegion())
-                .credentialsProvider(newCredentialsProvider(accessKeyID, secretAccessKey));
+                .credentialsProvider(createCredentialsProvider(httpClientBuilder));
+
         if (endpointURI != null) {
             builder = builder.endpointOverride(endpointURI);
         }
+
         return builder.build();
+    }
+
+    private AwsCredentialsProvider createCredentialsProvider(SdkHttpClient.Builder<UrlConnectionHttpClient.Builder> httpClientBuilder) {
+        if (stsRoleArn != null) {
+            StsClient stsClient = StsClient.builder()
+                    .httpClientBuilder(httpClientBuilder)
+                    .credentialsProvider(newCredentialsProvider(accessKeyID, secretAccessKey))
+                    .region(stsRegion)
+                    .build();
+
+            AssumeRoleRequest roleRequest = AssumeRoleRequest.builder()
+                    .roleArn(stsRoleArn)
+                    .roleSessionName(stsSessionName)
+                    .build();
+
+            return StsAssumeRoleCredentialsProvider.builder()
+                    .stsClient(stsClient)
+                    .refreshRequest(roleRequest)
+                    .build();
+        } else {
+            return newCredentialsProvider(accessKeyID, secretAccessKey);
+        }
     }
 
 }

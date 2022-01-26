@@ -1338,6 +1338,45 @@
                                             </td>
                                         </tr>
                                         <tr>
+                                            <td>STS Role ARN
+                                                <a tabindex="0" class="btn btn-sm cl-help"
+                                                   role="button" data-toggle="popover"
+                                                   data-trigger="focus"
+                                                   data-content="Role ARN to assume when accessing s3">?</a>
+                                            </td>
+                                            <td>
+                                                <input class="form-control" type="text"
+                                                       name="S3Source.sts_role_arn"
+                                                       data-requires-restart="true">
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>STS Session Name
+                                                <a tabindex="0" class="btn btn-sm cl-help"
+                                                   role="button" data-toggle="popover"
+                                                   data-trigger="focus"
+                                                   data-content="STS Session Name">?</a>
+                                            </td>
+                                            <td>
+                                                <input class="form-control" type="text"
+                                                       name="S3Source.sts_session_name"
+                                                       data-requires-restart="true">
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>STS Region
+                                                <a tabindex="0" class="btn btn-sm cl-help"
+                                                   role="button" data-toggle="popover"
+                                                   data-trigger="focus"
+                                                   data-content="Region in which to assume the STS role">?</a>
+                                            </td>
+                                            <td>
+                                                <input class="form-control" type="text"
+                                                       name="S3Source.sts_region"
+                                                       data-requires-restart="true">
+                                            </td>
+                                        </tr>
+                                        <tr>
                                             <td>Bucket Name
                                                 <a tabindex="0" class="btn btn-sm cl-help"
                                                    role="button" data-toggle="popover"

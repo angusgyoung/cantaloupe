@@ -229,6 +229,11 @@ S3Source.region =
 S3Source.access_key_id =
 S3Source.secret_key =
 
+# !! STS Role Configuration
+S3Source.sts_role_arn =
+S3Source.sts_session_name =
+S3Source.sts_region =
+
 # How to look up objects. Allowed values are `BasicLookupStrategy` and
 # `ScriptLookupStrategy`. ScriptLookupStrategy uses a delegate method for
 # dynamic lookups; see the user manual.
